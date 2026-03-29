@@ -1,16 +1,7 @@
-import { Header } from './components/Layout/Header'
-import { Board }  from './components/Board/Board'
+import { AppLayout } from './components/Layout/AppLayout'
 
 function App() {
-  return (
-    <div
-      className="flex flex-col h-screen overflow-hidden"
-      style={{ backgroundColor: '#0e0e14' }}
-    >
-      <Header />
-      <Board />
-    </div>
-  )
+  return <AppLayout />
 }
 
 export default App

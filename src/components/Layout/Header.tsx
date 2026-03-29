@@ -1,31 +1,45 @@
-export function Header() {
+import { Menu } from 'lucide-react'
+import type { Page } from './AppLayout'
+
+const PAGE_LABELS: Record<Page, string> = {
+  workspace: 'Workspace',
+  team:      'Team',
+  comments:  'Comments',
+  labels:    'Labels',
+  activity:  'Activity',
+}
+
+interface HeaderProps {
+  activePage:       Page
+  onMobileMenuOpen: () => void
+}
+
+export function Header({ activePage, onMobileMenuOpen }: HeaderProps) {
   return (
     <header
-      className="flex items-center h-14 px-6 shrink-0 border-b"
+      className="flex items-center h-14 px-5 shrink-0 border-b gap-3"
       style={{ backgroundColor: '#0e0e14', borderColor: '#1e1e2e' }}
     >
-      {/* Logo mark + wordmark */}
-      <div className="flex items-center gap-2.5">
-        <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-          style={{ backgroundColor: '#6366f1', boxShadow: '0 0 12px rgba(99,102,241,0.35)' }}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <rect x="1" y="1" width="5" height="5" rx="1.2" fill="white" opacity="0.95" />
-            <rect x="8" y="1" width="5" height="5" rx="1.2" fill="white" opacity="0.55" />
-            <rect x="1" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.55" />
-            <rect x="8" y="8" width="5" height="5" rx="1.2" fill="white" opacity="0.25" />
-          </svg>
-        </div>
-        <span
-          className="text-sm font-semibold tracking-tight"
-          style={{ fontFamily: "'Space Grotesk', sans-serif", color: '#e2e2f0' }}
-        >
-          Taskflow
-        </span>
-      </div>
+      {/* Mobile hamburger — hidden on md+ */}
+      <button
+        onClick={onMobileMenuOpen}
+        className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg transition-colors shrink-0 cursor-pointer"
+        style={{ color: '#6a6a88' }}
+        onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#1e1e2e'; e.currentTarget.style.color = '#a0a0b8' }}
+        onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#6a6a88' }}
+      >
+        <Menu size={18} />
+      </button>
 
-      {/* Spacer — search bar + filters slotted in here during Phase 12 */}
+      {/* Page title */}
+      <h1
+        className="text-sm font-semibold"
+        style={{ fontFamily: "'Space Grotesk', sans-serif", color: '#c0c0d8' }}
+      >
+        {PAGE_LABELS[activePage]}
+      </h1>
+
+      {/* Spacer — search bar + filters slot in here during Phase 12 */}
       <div className="flex-1" />
     </header>
   )

@@ -34,7 +34,8 @@ export function Board() {
       className="flex-1 overflow-x-auto overflow-y-hidden"
       style={{ backgroundColor: '#0e0e14' }}
     >
-      <div className="flex gap-4 p-5 h-full" style={{ minWidth: 'max-content' }}>
+      {/* min-width:100% + width:max-content = centers when fits, scrolls when overflows */}
+      <div className="flex gap-4 p-5 h-full justify-center" style={{ minWidth: '100%', width: 'max-content' }}>
         {COLUMNS.map(col => {
           const colTasks = tasks
             .filter(t => t.status === col.id)
