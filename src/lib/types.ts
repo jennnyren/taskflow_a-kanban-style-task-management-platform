@@ -74,46 +74,5 @@ export interface TaskWithRelations extends Task {
   labels:    Label[]
 }
 
-// ─── Supabase database shape (for typed client) ───────────────────────────────
-
-export interface Database {
-  public: {
-    Tables: {
-      tasks: {
-        Row:    Task
-        Insert: Omit<Task, 'id' | 'created_at' | 'updated_at'>
-        Update: Partial<Omit<Task, 'id' | 'created_at' | 'updated_at'>>
-      }
-      team_members: {
-        Row:    TeamMember
-        Insert: Omit<TeamMember, 'id' | 'created_at'>
-        Update: Partial<Omit<TeamMember, 'id' | 'created_at'>>
-      }
-      labels: {
-        Row:    Label
-        Insert: Omit<Label, 'id' | 'created_at'>
-        Update: Partial<Omit<Label, 'id' | 'created_at'>>
-      }
-      task_assignees: {
-        Row:    TaskAssignee
-        Insert: Omit<TaskAssignee, 'id'>
-        Update: never
-      }
-      task_labels: {
-        Row:    TaskLabel
-        Insert: Omit<TaskLabel, 'id'>
-        Update: never
-      }
-      comments: {
-        Row:    Comment
-        Insert: Omit<Comment, 'id' | 'created_at'>
-        Update: Partial<Pick<Comment, 'content'>>
-      }
-      activity_log: {
-        Row:    ActivityEntry
-        Insert: Omit<ActivityEntry, 'id' | 'created_at'>
-        Update: never
-      }
-    }
-  }
-}
+// Note: A proper Database generic for the Supabase client is best generated via:
+// npx supabase gen types typescript --project-id <id> > src/lib/database.types.ts
