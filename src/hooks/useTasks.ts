@@ -9,6 +9,7 @@ export interface UseTasks {
   error:      string | null
   createTask: (title: string, status: TaskStatus, priority?: TaskPriority) => Promise<Task | null>
   updateTask: (id: string, updates: Partial<Pick<Task, 'title' | 'description' | 'status' | 'priority' | 'due_date' | 'position'>>) => Promise<void>
+  moveTask:   (id: string, newStatus: TaskStatus) => Promise<void>
   deleteTask: (id: string) => Promise<void>
   refetch:    () => Promise<void>
 }
@@ -113,5 +114,38 @@ export function useTasks(projectId: string): UseTasks {
     setTasks(prev => prev.filter(t => t.id !== id))
   }, [user.id])
 
-  return { tasks, loading, error, createTask, updateTask, deleteTask, refetch: fetchTasks }
+  // ─── Move (drag & drop status change) ────────────────────────────────────
+
+  const moveTask = useCallback(async (id: string, newStatus: TaskStatus): Promise<void> => {
+    const task = tasks.find(t => t.id === id)
+    if (!task || task.status === newStatus) return
+
+    const oldStatus = task.status
+
+    // Optimistic update
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t))
+
+    const { error: updateError } = await supabase
+      .from('tasks')
+      .update({ status: newStatus })
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    if (updateError) {
+      // Rollback
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, status: oldStatus } : t))
+      setError(updateError.message)
+      return
+    }
+
+    // Activity log — fire-and-forget
+    supabase.from('activity_log').insert({
+      task_id: id,
+      action:  'status_change',
+      details: { from: oldStatus, to: newStatus },
+      user_id: user.id,
+    })
+  }, [tasks, user.id])
+
+  return { tasks, loading, error, createTask, updateTask, moveTask, deleteTask, refetch: fetchTasks }
 }
