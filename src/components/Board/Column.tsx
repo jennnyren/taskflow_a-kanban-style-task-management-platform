@@ -11,12 +11,17 @@ interface ColumnProps {
   onTaskClick: (task: Task) => void
 }
 
-function EmptyState({ color }: { color: string }) {
+function EmptyState({ color, onAdd }: { color: string; onAdd: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-10 px-4">
+    <button
+      onClick={onAdd}
+      className="flex flex-col items-center justify-center py-10 px-4 w-full rounded-xl transition-colors cursor-pointer"
+      onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)' }}
+      onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
+    >
       <div
-        className="w-8 h-8 rounded-lg mb-3 flex items-center justify-center opacity-30"
-        style={{ border: `1.5px dashed ${color}` }}
+        className="w-8 h-8 rounded-lg mb-3 flex items-center justify-center"
+        style={{ border: `1.5px dashed ${color}`, opacity: 0.4 }}
       >
         <Plus size={14} color={color} />
       </div>
@@ -29,7 +34,7 @@ function EmptyState({ color }: { color: string }) {
       >
         No tasks yet
       </p>
-    </div>
+    </button>
   )
 }
 
@@ -179,7 +184,7 @@ export function Column({ column, tasks, onAddTask, onTaskClick }: ColumnProps) {
         ))}
 
         {!isAdding && tasks.length === 0 && (
-          <EmptyState color={column.dot} />
+          <EmptyState color={column.dot} onAdd={() => setIsAdding(true)} />
         )}
       </div>
     </div>

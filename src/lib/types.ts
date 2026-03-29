@@ -15,6 +15,7 @@ export interface Task {
   priority:    TaskPriority
   due_date:    string | null   // ISO date string: "YYYY-MM-DD"
   position:    number
+  project_id:  string
   user_id:     string
   created_at:  string
   updated_at:  string
@@ -68,6 +69,21 @@ export interface ActivityEntry {
 }
 
 // ─── Enriched / view types ────────────────────────────────────────────────────
+
+export interface Project {
+  id:          string
+  name:        string
+  description: string | null
+  color:       string
+  icon:        string | null
+  user_id:     string
+  created_at:  string
+  updated_at:  string
+}
+
+export interface ProjectWithCount extends Project {
+  task_count: number
+}
 
 export interface TaskWithRelations extends Task {
   assignees: TeamMember[]

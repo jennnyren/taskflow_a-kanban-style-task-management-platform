@@ -13,7 +13,7 @@ export interface UseTasks {
   refetch:    () => Promise<void>
 }
 
-export function useTasks(): UseTasks {
+export function useTasks(projectId: string): UseTasks {
   const { user }              = useAuth()
   const [tasks, setTasks]     = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -25,6 +25,7 @@ export function useTasks(): UseTasks {
       .from('tasks')
       .select('*')
       .eq('user_id', user.id)
+      .eq('project_id', projectId)
       .order('position', { ascending: true })
       .order('created_at', { ascending: true })
 
@@ -34,7 +35,7 @@ export function useTasks(): UseTasks {
       setTasks(data ?? [])
     }
     setLoading(false)
-  }, [user.id])
+  }, [user.id, projectId])
 
   useEffect(() => {
     fetchTasks()
@@ -51,7 +52,7 @@ export function useTasks(): UseTasks {
 
     const { data, error: insertError } = await supabase
       .from('tasks')
-      .insert({ title: title.trim(), status, priority, position, user_id: user.id })
+      .insert({ title: title.trim(), status, priority, position, project_id: projectId, user_id: user.id })
       .select()
       .single()
 
@@ -71,7 +72,7 @@ export function useTasks(): UseTasks {
     })
 
     return data
-  }, [tasks, user.id])
+  }, [tasks, user.id, projectId])
 
   // ─── Update ───────────────────────────────────────────────────────────────
 

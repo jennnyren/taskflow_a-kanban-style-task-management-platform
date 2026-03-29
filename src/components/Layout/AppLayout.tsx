@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Sidebar }   from './Sidebar'
 import { Header }    from './Header'
-import { Board }     from '../Board/Board'
+import { WorkspacePage } from '../Workspace/WorkspacePage'
 import {
   LayoutDashboard,
   Users,
@@ -117,7 +117,7 @@ export function AppLayout() {
 
         {/* Page content */}
         {activePage === 'workspace'
-          ? <Board />
+          ? <WorkspacePage />
           : <PlaceholderPage page={activePage} />
         }
       </div>

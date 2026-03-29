@@ -3,8 +3,8 @@ import { useTasks } from '../../hooks/useTasks'
 import { Column } from './Column'
 import type { Task } from '../../lib/types'
 
-export function Board() {
-  const { tasks, loading, error, createTask } = useTasks()
+export function Board({ projectId }: { projectId: string }) {
+  const { tasks, loading, error, createTask } = useTasks(projectId)
 
   if (loading) return <BoardSkeleton />
 
