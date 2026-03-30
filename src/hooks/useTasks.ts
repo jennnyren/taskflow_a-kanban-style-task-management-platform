@@ -4,14 +4,15 @@ import { useAuth } from '../context/AuthContext'
 import type { Task, TaskStatus, TaskPriority } from '../lib/types'
 
 export interface UseTasks {
-  tasks:      Task[]
-  loading:    boolean
-  error:      string | null
-  createTask: (title: string, status: TaskStatus, priority?: TaskPriority) => Promise<Task | null>
-  updateTask: (id: string, updates: Partial<Pick<Task, 'title' | 'description' | 'status' | 'priority' | 'due_date' | 'position'>>) => Promise<void>
-  moveTask:   (id: string, newStatus: TaskStatus) => Promise<void>
-  deleteTask: (id: string) => Promise<void>
-  refetch:    () => Promise<void>
+  tasks:        Task[]
+  loading:      boolean
+  error:        string | null
+  createTask:   (title: string, status: TaskStatus, priority?: TaskPriority) => Promise<Task | null>
+  updateTask:   (id: string, updates: Partial<Pick<Task, 'title' | 'description' | 'status' | 'priority' | 'due_date' | 'position'>>) => Promise<void>
+  moveTask:     (id: string, newStatus: TaskStatus) => Promise<void>
+  deleteTask:   (id: string) => Promise<void>
+  logActivity:  (taskId: string, action: string, details: Record<string, unknown>) => void
+  refetch:      () => Promise<void>
 }
 
 export function useTasks(projectId: string): UseTasks {
@@ -147,5 +148,15 @@ export function useTasks(projectId: string): UseTasks {
     })
   }, [tasks, user.id])
 
-  return { tasks, loading, error, createTask, updateTask, moveTask, deleteTask, refetch: fetchTasks }
+  // ─── Log activity (called by modal for field-level changes) ──────────────
+
+  const logActivity = useCallback((
+    taskId:  string,
+    action:  string,
+    details: Record<string, unknown>,
+  ): void => {
+    supabase.from('activity_log').insert({ task_id: taskId, action, details, user_id: user.id })
+  }, [user.id])
+
+  return { tasks, loading, error, createTask, updateTask, moveTask, deleteTask, logActivity, refetch: fetchTasks }
 }

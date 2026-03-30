@@ -11,11 +11,15 @@ import { COLUMNS } from '../../lib/constants'
 import { useTasks } from '../../hooks/useTasks'
 import { Column } from './Column'
 import { DragOverlayCard } from './TaskCard'
+import { TaskModal } from '../Task/TaskModal'
 import type { Task, TaskStatus } from '../../lib/types'
 
 export function Board({ projectId }: { projectId: string }) {
-  const { tasks, loading, error, createTask, moveTask } = useTasks(projectId)
-  const [activeTask, setActiveTask] = useState<Task | null>(null)
+  const { tasks, loading, error, createTask, moveTask, updateTask, deleteTask, logActivity } = useTasks(projectId)
+  const [activeTask,      setActiveTask]      = useState<Task | null>(null)
+  const [selectedTaskId,  setSelectedTaskId]  = useState<string | null>(null)
+
+  const selectedTask = tasks.find(t => t.id === selectedTaskId) ?? null
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -59,11 +63,20 @@ export function Board({ projectId }: { projectId: string }) {
   )
 
   function handleTaskClick(task: Task) {
-    // Task detail modal — wired up in Phase 6
-    console.log('task clicked:', task.id)
+    setSelectedTaskId(task.id)
   }
 
   return (
+    <>
+    {selectedTask && (
+      <TaskModal
+        task={selectedTask}
+        updateTask={updateTask}
+        deleteTask={deleteTask}
+        logActivity={logActivity}
+        onClose={() => setSelectedTaskId(null)}
+      />
+    )}
     <DndContext
       sensors={sensors}
       onDragStart={handleDragStart}
@@ -98,6 +111,7 @@ export function Board({ projectId }: { projectId: string }) {
         {activeTask ? <DragOverlayCard task={activeTask} /> : null}
       </DragOverlay>
     </DndContext>
+    </>
   )
 }
 
