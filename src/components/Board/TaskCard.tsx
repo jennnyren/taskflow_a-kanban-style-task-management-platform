@@ -1,41 +1,46 @@
-import { format, isPast, isToday, isTomorrow, parseISO } from 'date-fns'
-import { CalendarDays, AlertCircle } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { CalendarDays, AlertCircle, MessageSquare } from 'lucide-react'
 import { useDraggable } from '@dnd-kit/core'
 import { PRIORITY_CONFIG } from '../../lib/constants'
-import type { Task } from '../../lib/types'
+import { getDueDateStatus } from '../../lib/utils'
+import { AvatarStack } from '../Team/MemberAvatar'
+import type { TaskWithRelations } from '../../lib/types'
+import type { DueDateStatus } from '../../lib/utils'
 
-// ─── Shared card internals ────────────────────────────────────────────────────
+// ─── Due date badge ───────────────────────────────────────────────────────────
+
+const DUE_DATE_STYLES: Record<DueDateStatus, { text: string; bg: string; icon: string }> = {
+  overdue:   { text: '#fca5a5', bg: '#2a1520', icon: '#f87171' },
+  due_today: { text: '#fb923c', bg: '#2a1608', icon: '#f97316' },
+  due_soon:  { text: '#fcd34d', bg: '#231c0e', icon: '#fbbf24' },
+  upcoming:  { text: '#94a3b8', bg: '#1c1c28', icon: '#64748b' },
+}
 
 function DueDateBadge({ dateStr }: { dateStr: string }) {
-  const date    = parseISO(dateStr)
-  const overdue = isPast(date) && !isToday(date)
-  const today   = isToday(date)
-  const soon    = isTomorrow(date)
+  const status = getDueDateStatus(dateStr)
+  if (!status) return null
 
-  const label = today   ? 'Today'
-              : soon    ? 'Tomorrow'
-              : format(date, 'MMM d')
-
-  const color = overdue ? { text: '#fca5a5', bg: '#2a1520', icon: '#f87171' }
-              : today   ? { text: '#fcd34d', bg: '#231c0e', icon: '#fbbf24' }
-              : soon    ? { text: '#86efac', bg: '#0e2318', icon: '#4ade80' }
-              :           { text: '#94a3b8', bg: '#1c1c28', icon: '#64748b' }
+  const style = DUE_DATE_STYLES[status]
+  const date  = parseISO(dateStr)
+  const label = status === 'due_today' ? 'Today' : format(date, 'MMM d')
 
   return (
     <span
       className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded"
-      style={{ color: color.text, backgroundColor: color.bg }}
+      style={{ color: style.text, backgroundColor: style.bg, fontFamily: "'Space Grotesk', sans-serif" }}
     >
-      {overdue
-        ? <AlertCircle size={9} style={{ color: color.icon }} />
-        : <CalendarDays size={9} style={{ color: color.icon }} />
+      {status === 'overdue'
+        ? <AlertCircle size={9} style={{ color: style.icon }} />
+        : <CalendarDays size={9} style={{ color: style.icon }} />
       }
       {label}
     </span>
   )
 }
 
-function CardBody({ task }: { task: Task }) {
+// ─── Card body (shared between draggable card and drag overlay) ───────────────
+
+function CardBody({ task }: { task: TaskWithRelations }) {
   const priority = PRIORITY_CONFIG[task.priority]
   return (
     <>
@@ -45,6 +50,29 @@ function CardBody({ task }: { task: Task }) {
       >
         {task.title}
       </p>
+
+      {/* Labels row */}
+      {task.labels.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {task.labels.map(l => (
+            <span
+              key={l.id}
+              className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+              style={{
+                fontFamily:      "'Space Grotesk', sans-serif",
+                color:           l.color,
+                backgroundColor: l.color + '1a',
+                border:          `1px solid ${l.color}33`,
+              }}
+            >
+              <span className="w-1 h-1 rounded-full shrink-0" style={{ backgroundColor: l.color }} />
+              {l.name}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Footer row: priority · due date · comments · assignees */}
       <div className="flex items-center gap-1.5 flex-wrap">
         <span
           className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded"
@@ -54,16 +82,27 @@ function CardBody({ task }: { task: Task }) {
           {priority.label}
         </span>
         {task.due_date && <DueDateBadge dateStr={task.due_date} />}
-        {/* Spacer — assignees + labels slot in here (Phase 7 & 8) */}
         <div className="flex-1" />
+        {task.comment_count > 0 && (
+          <span
+            className="inline-flex items-center gap-1 text-[10px]"
+            style={{ color: '#4a4a60', fontFamily: "'Space Grotesk', sans-serif" }}
+          >
+            <MessageSquare size={10} />
+            {task.comment_count}
+          </span>
+        )}
+        {task.assignees.length > 0 && (
+          <AvatarStack members={task.assignees} max={3} size="sm" />
+        )}
       </div>
     </>
   )
 }
 
-// ─── Drag overlay card (lifted, rotated) ──────────────────────────────────────
+// ─── Drag overlay card (lifted, rotated) ─────────────────────────────────────
 
-export function DragOverlayCard({ task }: { task: Task }) {
+export function DragOverlayCard({ task }: { task: TaskWithRelations }) {
   return (
     <div
       className="rounded-xl p-3.5 border"
@@ -85,15 +124,16 @@ export function DragOverlayCard({ task }: { task: Task }) {
 // ─── Draggable task card ──────────────────────────────────────────────────────
 
 interface TaskCardProps {
-  task:    Task
+  task:    TaskWithRelations
   onClick: () => void
 }
 
 export function TaskCard({ task, onClick }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id })
+  const dueDateStatus = getDueDateStatus(task.due_date)
+  const isOverdue     = dueDateStatus === 'overdue'
 
   if (isDragging) {
-    // Ghost placeholder — keeps space in the column while card is in the overlay
     return (
       <div
         ref={setNodeRef}
@@ -117,24 +157,28 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
       onClick={onClick}
       className="rounded-xl p-3.5 border transition-all duration-150"
       style={{
-        backgroundColor: '#16161f',
-        borderColor:     '#252535',
+        backgroundColor: isOverdue ? '#1a1212' : '#16161f',
+        borderColor:     isOverdue ? '#3d2020' : '#252535',
+        // Inset left accent for overdue — no layout shift, pure visual
+        boxShadow:       isOverdue ? 'inset 3px 0 0 rgba(248,113,113,0.4)' : 'none',
         cursor:          'grab',
         touchAction:     'none',
       }}
       onMouseEnter={e => {
         const el = e.currentTarget
-        el.style.backgroundColor = '#1b1b26'
-        el.style.borderColor     = '#313147'
+        el.style.backgroundColor = isOverdue ? '#1f1515' : '#1b1b26'
+        el.style.borderColor     = isOverdue ? '#4d2828' : '#313147'
         el.style.transform       = 'translateY(-1px)'
-        el.style.boxShadow       = '0 4px 16px rgba(0,0,0,0.35)'
+        el.style.boxShadow       = isOverdue
+          ? 'inset 3px 0 0 rgba(248,113,113,0.6), 0 4px 16px rgba(0,0,0,0.35)'
+          : '0 4px 16px rgba(0,0,0,0.35)'
       }}
       onMouseLeave={e => {
         const el = e.currentTarget
-        el.style.backgroundColor = '#16161f'
-        el.style.borderColor     = '#252535'
+        el.style.backgroundColor = isOverdue ? '#1a1212' : '#16161f'
+        el.style.borderColor     = isOverdue ? '#3d2020' : '#252535'
         el.style.transform       = 'translateY(0)'
-        el.style.boxShadow       = 'none'
+        el.style.boxShadow       = isOverdue ? 'inset 3px 0 0 rgba(248,113,113,0.4)' : 'none'
       }}
     >
       <CardBody task={task} />

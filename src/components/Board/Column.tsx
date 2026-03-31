@@ -3,13 +3,14 @@ import { Plus } from 'lucide-react'
 import { useDroppable } from '@dnd-kit/core'
 import { TaskCard } from './TaskCard'
 import type { ColumnConfig } from '../../lib/constants'
-import type { Task } from '../../lib/types'
+import type { TaskWithRelations } from '../../lib/types'
 
 interface ColumnProps {
   column:      ColumnConfig
-  tasks:       Task[]
+  tasks:       TaskWithRelations[]
+  isFiltered?: boolean
   onAddTask:   (title: string) => Promise<void>
-  onTaskClick: (task: Task) => void
+  onTaskClick: (task: TaskWithRelations) => void
 }
 
 function EmptyState({ color, onAdd }: { color: string; onAdd: () => void }) {
@@ -90,7 +91,7 @@ function InlineAddInput({
   )
 }
 
-export function Column({ column, tasks, onAddTask, onTaskClick }: ColumnProps) {
+export function Column({ column, tasks, isFiltered, onAddTask, onTaskClick }: ColumnProps) {
   const [isAdding, setIsAdding] = useState(false)
 
   const { isOver, setNodeRef } = useDroppable({ id: column.id })
@@ -166,7 +167,18 @@ export function Column({ column, tasks, onAddTask, onTaskClick }: ColumnProps) {
         ))}
 
         {!isAdding && tasks.length === 0 && (
-          <EmptyState color={column.dot} onAdd={() => setIsAdding(true)} />
+          isFiltered
+            ? (
+              <div className="flex flex-col items-center justify-center py-10 px-4">
+                <p
+                  className="text-[11px] text-center"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#4a4a60' }}
+                >
+                  No matching tasks
+                </p>
+              </div>
+            )
+            : <EmptyState color={column.dot} onAdd={() => setIsAdding(true)} />
         )}
       </div>
     </div>

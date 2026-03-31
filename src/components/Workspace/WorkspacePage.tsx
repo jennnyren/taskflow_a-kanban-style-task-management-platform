@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { useProjects } from '../../hooks/useProjects'
 import { ProjectList } from './ProjectList'
@@ -75,10 +75,22 @@ function BoardHeader({ project, onBack }: { project: ProjectWithCount; onBack: (
   )
 }
 
-export function WorkspacePage() {
+interface PendingTask { projectId: string; taskId: string }
+
+interface WorkspacePageProps {
+  pendingTask?:     PendingTask | null
+  onPendingConsumed?: () => void
+}
+
+export function WorkspacePage({ pendingTask, onPendingConsumed }: WorkspacePageProps) {
   const { projects, loading, createProject } = useProjects()
-  const [selectedId,      setSelectedId]      = useState<string | null>(null)
+  const [selectedId,      setSelectedId]      = useState<string | null>(pendingTask?.projectId ?? null)
   const [showCreateModal, setShowCreateModal] = useState(false)
+
+  // When a pending task arrives (from CommentsPage navigation), select that project
+  useEffect(() => {
+    if (pendingTask) setSelectedId(pendingTask.projectId)
+  }, [pendingTask])
 
   if (loading) return <ProjectsLoadingSkeleton />
 
@@ -92,7 +104,11 @@ export function WorkspacePage() {
           project={selectedProject}
           onBack={() => setSelectedId(null)}
         />
-        <Board projectId={selectedId} />
+        <Board
+          projectId={selectedId}
+          openTaskId={pendingTask?.taskId}
+          onTaskOpened={onPendingConsumed}
+        />
       </div>
     )
   }

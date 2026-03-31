@@ -2,6 +2,10 @@ import { useState } from 'react'
 import { Sidebar }   from './Sidebar'
 import { Header }    from './Header'
 import { WorkspacePage } from '../Workspace/WorkspacePage'
+import { TeamPage } from '../Team/TeamPage'
+import { LabelsPage } from '../Labels/LabelsPage'
+import { CommentsPage } from '../Comments/CommentsPage'
+import { ActivityPage } from '../Activity/ActivityPage'
 import {
   LayoutDashboard,
   Users,
@@ -89,10 +93,18 @@ function PlaceholderPage({ page }: { page: Exclude<Page, 'workspace'> }) {
 
 // ─── App layout ───────────────────────────────────────────────────────────────
 
+interface PendingTask { projectId: string; taskId: string }
+
 export function AppLayout() {
-  const [activePage,  setActivePage]  = useState<Page>('workspace')
-  const [collapsed,   setCollapsed]   = useState(true)
-  const [mobileOpen,  setMobileOpen]  = useState(false)
+  const [activePage,   setActivePage]  = useState<Page>('workspace')
+  const [collapsed,    setCollapsed]   = useState(true)
+  const [mobileOpen,   setMobileOpen]  = useState(false)
+  const [pendingTask,  setPendingTask] = useState<PendingTask | null>(null)
+
+  function handleOpenTask(projectId: string, taskId: string) {
+    setPendingTask({ projectId, taskId })
+    setActivePage('workspace')
+  }
 
   return (
     <div
@@ -117,7 +129,15 @@ export function AppLayout() {
 
         {/* Page content */}
         {activePage === 'workspace'
-          ? <WorkspacePage />
+          ? <WorkspacePage pendingTask={pendingTask} onPendingConsumed={() => setPendingTask(null)} />
+          : activePage === 'team'
+          ? <TeamPage />
+          : activePage === 'labels'
+          ? <LabelsPage />
+          : activePage === 'comments'
+          ? <CommentsPage onOpenTask={handleOpenTask} />
+          : activePage === 'activity'
+          ? <ActivityPage onOpenTask={handleOpenTask} />
           : <PlaceholderPage page={activePage} />
         }
       </div>

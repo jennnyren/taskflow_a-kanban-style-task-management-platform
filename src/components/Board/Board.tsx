@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -9,15 +9,33 @@ import {
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core'
 import { COLUMNS } from '../../lib/constants'
 import { useTasks } from '../../hooks/useTasks'
+import { useFilters } from '../../hooks/useFilters'
 import { Column } from './Column'
+import { BoardToolbar } from './BoardToolbar'
+import { StatsBar } from '../Layout/StatsBar'
 import { DragOverlayCard } from './TaskCard'
 import { TaskModal } from '../Task/TaskModal'
-import type { Task, TaskStatus } from '../../lib/types'
+import type { TaskWithRelations, TaskStatus } from '../../lib/types'
 
-export function Board({ projectId }: { projectId: string }) {
-  const { tasks, loading, error, createTask, moveTask, updateTask, deleteTask, logActivity } = useTasks(projectId)
-  const [activeTask,      setActiveTask]      = useState<Task | null>(null)
+interface BoardProps {
+  projectId:   string
+  openTaskId?: string | null
+  onTaskOpened?: () => void
+}
+
+export function Board({ projectId, openTaskId, onTaskOpened }: BoardProps) {
+  const { tasks, loading, error, createTask, moveTask, updateTask, deleteTask, toggleAssignee, toggleLabel } = useTasks(projectId)
+  const { filters, set: setFilter, filtered, activeCount, clear: clearFilters } = useFilters(tasks)
+  const [activeTask,      setActiveTask]      = useState<TaskWithRelations | null>(null)
   const [selectedTaskId,  setSelectedTaskId]  = useState<string | null>(null)
+
+  // Open a specific task when navigated from an external context (e.g. CommentsPage)
+  useEffect(() => {
+    if (openTaskId && !loading && tasks.some(t => t.id === openTaskId)) {
+      setSelectedTaskId(openTaskId)
+      onTaskOpened?.()
+    }
+  }, [openTaskId, loading, tasks, onTaskOpened])
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) ?? null
 
@@ -62,7 +80,7 @@ export function Board({ projectId }: { projectId: string }) {
     </div>
   )
 
-  function handleTaskClick(task: Task) {
+  function handleTaskClick(task: TaskWithRelations) {
     setSelectedTaskId(task.id)
   }
 
@@ -73,10 +91,23 @@ export function Board({ projectId }: { projectId: string }) {
         task={selectedTask}
         updateTask={updateTask}
         deleteTask={deleteTask}
-        logActivity={logActivity}
+        toggleAssignee={toggleAssignee}
+        toggleLabel={toggleLabel}
         onClose={() => setSelectedTaskId(null)}
       />
     )}
+    <StatsBar
+      tasks={tasks}
+      overdueActive={filters.dueDate === 'overdue'}
+      onOverdueClick={() => setFilter('dueDate', filters.dueDate === 'overdue' ? 'all' : 'overdue')}
+      onClearClick={clearFilters}
+    />
+    <BoardToolbar
+      filters={filters}
+      activeCount={activeCount}
+      onSet={setFilter}
+      onClear={clearFilters}
+    />
     <DndContext
       sensors={sensors}
       onDragStart={handleDragStart}
@@ -89,7 +120,7 @@ export function Board({ projectId }: { projectId: string }) {
       >
         <div className="flex gap-4 p-5 h-full justify-center" style={{ minWidth: '100%', width: 'max-content' }}>
           {COLUMNS.map(col => {
-            const colTasks = tasks
+            const colTasks = filtered
               .filter(t => t.status === col.id)
               .sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at))
 
@@ -98,6 +129,7 @@ export function Board({ projectId }: { projectId: string }) {
                 key={col.id}
                 column={col}
                 tasks={colTasks}
+                isFiltered={activeCount > 0}
                 onAddTask={title => createTask(title, col.id).then(() => {})}
                 onTaskClick={handleTaskClick}
               />

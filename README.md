@@ -1,73 +1,90 @@
-# React + TypeScript + Vite
+# Kanban Board
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A full-featured Kanban task management app built as a frontend assessment project. Drag tasks between columns, track due dates, assign team members, add labels and comments, and monitor activity across the board.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19** + **TypeScript** (strict)
+- **Vite 8** — build tooling
+- **Supabase** — Postgres database, Row Level Security, anonymous auth
+- **Tailwind CSS v4** — utility styling via `@tailwindcss/vite`
+- **@dnd-kit** — accessible drag-and-drop
+- **date-fns** — date formatting and due-date logic
+- **lucide-react** — icons
 
-## React Compiler
+## Running Locally
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+# 1. Clone the repo
+git clone <repo-url>
+cd np-assesssment
 
-## Expanding the ESLint configuration
+# 2. Install dependencies
+npm install
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+# 3. Set up environment variables
+cp .env.example .env
+# Edit .env and fill in your Supabase project URL and anon key
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+# 4. Run database migrations
+# In your Supabase project's SQL editor, run:
+#   supabase-migration-projects.sql   (adds projects table)
+# The initial schema SQL is also in the repo root.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# 5. Start the dev server
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The app opens at `http://localhost:5173`. Authentication is anonymous — a session is created automatically on first load.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Environment Variables
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+Both values are found in your Supabase project under **Settings → API**.
+
+## Features
+
+### Board
+- Multi-project workspace — create projects with a name, color, and emoji icon
+- Kanban columns: **To Do**, **In Progress**, **In Review**, **Done**
+- Drag and drop tasks between columns with optimistic UI updates
+- Inline task creation per column
+
+### Tasks
+- Title and description (inline editing, auto-saves on blur)
+- Priority levels: Low, Normal, High
+- Due dates with visual indicators: overdue, due today, due soon, upcoming
+- Assign multiple team members per task
+- Apply multiple labels per task
+- Comment thread per task
+
+### Filtering & Stats
+- Search by task title (case-insensitive)
+- Filter by priority, assignee, label, and due date
+- Active filter count with one-click clear
+- Stats bar: total, in-progress, done, overdue counts — click Overdue to filter
+
+### Team
+- Add team members with a name and colour
+- View tasks assigned to each member
+
+### Labels
+- Create labels with a name and colour
+- Labels shown as chips on task cards
+
+### Comments
+- Add and delete comments per task
+- Global comments feed across all tasks and projects
+
+### Activity Log
+- Full timeline of task changes (created, edited, moved, deleted, comments)
+- Per-task activity in the task modal
+- Global activity feed page
+
+### Notifications
+- Toast notifications for all create/update/delete operations
+- Error toasts on any Supabase failure with rollback where applicable

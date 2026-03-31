@@ -86,8 +86,9 @@ export interface ProjectWithCount extends Project {
 }
 
 export interface TaskWithRelations extends Task {
-  assignees: TeamMember[]
-  labels:    Label[]
+  assignees:     TeamMember[]
+  labels:        Label[]
+  comment_count: number
 }
 
 // Note: A proper Database generic for the Supabase client is best generated via:

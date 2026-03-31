@@ -27,7 +27,7 @@ export function CreateProjectModal({ createProject, onClose, onCreated }: Create
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!name.trim()) { setError('Name is required'); return }
     setSaving(true)

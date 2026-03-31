@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 import type { Project, ProjectWithCount } from '../lib/types'
 
 export interface UseProjects {
@@ -14,6 +15,7 @@ export interface UseProjects {
 
 export function useProjects(): UseProjects {
   const { user }                  = useAuth()
+  const { toast }                 = useToast()
   const [projects, setProjects]   = useState<ProjectWithCount[]>([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
@@ -62,13 +64,15 @@ export function useProjects(): UseProjects {
       .single()
 
     if (insertError || !data) {
+      toast('Failed to create project — please try again', 'error')
       setError(insertError?.message ?? 'Failed to create project')
       return null
     }
 
     setProjects(prev => [...prev, { ...data, task_count: 0 }])
+    toast('Project created', 'success')
     return data
-  }, [user.id])
+  }, [user.id, toast])
 
   // ─── Update ───────────────────────────────────────────────────────────────
 
@@ -84,12 +88,14 @@ export function useProjects(): UseProjects {
       .select()
       .single()
 
-    if (updateError) { setError(updateError.message); return }
+    if (updateError) {
+      toast('Failed to update project — please try again', 'error')
+      setError(updateError.message)
+      return
+    }
 
-    setProjects(prev => prev.map(p =>
-      p.id === id ? { ...p, ...data } : p
-    ))
-  }, [user.id])
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data } : p))
+  }, [user.id, toast])
 
   // ─── Delete ───────────────────────────────────────────────────────────────
 
@@ -100,10 +106,14 @@ export function useProjects(): UseProjects {
       .eq('id', id)
       .eq('user_id', user.id)
 
-    if (deleteError) { setError(deleteError.message); return }
+    if (deleteError) {
+      toast('Failed to delete project — please try again', 'error')
+      setError(deleteError.message)
+      return
+    }
 
     setProjects(prev => prev.filter(p => p.id !== id))
-  }, [user.id])
+  }, [user.id, toast])
 
   return { projects, loading, error, createProject, updateProject, deleteProject }
 }

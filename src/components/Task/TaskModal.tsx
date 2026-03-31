@@ -1,17 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
-import { X, Trash2, Calendar, ChevronDown } from 'lucide-react'
+import { X, Trash2, Calendar, ChevronDown, Plus } from 'lucide-react'
+import { CommentList } from './CommentList'
+import { ActivityLog } from './ActivityLog'
 import { format, parseISO } from 'date-fns'
 import { Modal } from '../UI/Modal'
+import { MemberAvatar } from '../Team/MemberAvatar'
+import { useTeam } from '../../hooks/useTeam'
+import { useLabels } from '../../hooks/useLabels'
 import { COLUMNS, PRIORITY_CONFIG } from '../../lib/constants'
-import type { Task, TaskStatus, TaskPriority } from '../../lib/types'
+import type { TaskWithRelations, TaskStatus, TaskPriority, TeamMember, Label } from '../../lib/types'
 import type { UseTasks } from '../../hooks/useTasks'
 
 interface TaskModalProps {
-  task:         Task
-  updateTask:   UseTasks['updateTask']
-  deleteTask:   UseTasks['deleteTask']
-  logActivity:  UseTasks['logActivity']
-  onClose:      () => void
+  task:           TaskWithRelations
+  updateTask:     UseTasks['updateTask']
+  deleteTask:     UseTasks['deleteTask']
+  toggleAssignee: UseTasks['toggleAssignee']
+  toggleLabel:    UseTasks['toggleLabel']
+  onClose:        () => void
 }
 
 // ─── Auto-resize textarea hook ────────────────────────────────────────────────
@@ -143,44 +149,218 @@ function MetaRow({ label, children }: { label: string; children: React.ReactNode
   )
 }
 
-// ─── Placeholder section ──────────────────────────────────────────────────────
+// ─── Assignee picker ──────────────────────────────────────────────────────────
 
-function PlaceholderSection({ label, phase }: { label: string; phase: number }) {
+function AssigneePicker({
+  assignees,
+  onToggle,
+}: {
+  assignees: TaskWithRelations['assignees']
+  onToggle:  (member: TeamMember) => void
+}) {
+  const { members } = useTeam()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
   return (
-    <div className="mt-6">
-      <div className="flex items-center gap-2 mb-3">
-        <span
-          className="text-xs font-semibold"
-          style={{ fontFamily: "'Space Grotesk', sans-serif", color: '#5a5a78' }}
+    <div ref={ref} className="relative">
+      {/* Current assignees + add button */}
+      <div className="flex items-center flex-wrap gap-1.5 min-h-[28px]">
+        {assignees.map(m => (
+          <button
+            key={m.id}
+            onClick={() => onToggle(m)}
+            className="inline-flex items-center gap-1.5 rounded-full pr-2 pl-0.5 py-0.5 text-[11px] font-medium cursor-pointer transition-opacity"
+            style={{
+              backgroundColor: m.color + '22',
+              border:          `1px solid ${m.color}44`,
+              color:           m.color,
+              fontFamily:      "'Plus Jakarta Sans', sans-serif",
+            }}
+            title={`Remove ${m.name}`}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.7' }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
+          >
+            <MemberAvatar member={m} size="sm" />
+            {m.name}
+          </button>
+        ))}
+
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="w-6 h-6 rounded-full flex items-center justify-center transition-colors cursor-pointer shrink-0"
+          style={{
+            backgroundColor: open ? '#252535' : '#1a1a26',
+            border:          '1px dashed #3a3a55',
+            color:           '#5a5a78',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.color = '#a5b4fc' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = '#3a3a55'; e.currentTarget.style.color = '#5a5a78' }}
+          title="Add assignee"
         >
-          {label}
-        </span>
-        <div className="flex-1 h-px" style={{ backgroundColor: '#1e1e2e' }} />
-        <span
-          className="text-[9px] px-1.5 py-0.5 rounded font-medium"
-          style={{ backgroundColor: '#1a1a28', color: '#3a3a50', fontFamily: "'Space Grotesk', sans-serif" }}
-        >
-          Phase {phase}
-        </span>
+          <Plus size={11} />
+        </button>
       </div>
-      <div
-        className="rounded-xl px-3 py-4 text-center"
-        style={{ backgroundColor: '#0e0e14', border: '1px dashed #1e1e2e' }}
-      >
-        <p
-          className="text-[11px]"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#3a3a50' }}
+
+      {/* Dropdown */}
+      {open && (
+        <div
+          className="absolute top-full left-0 mt-1.5 w-full rounded-xl border py-1 z-20"
+          style={{ backgroundColor: '#1a1a26', borderColor: '#252535', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', minWidth: 160 }}
         >
-          Coming in Phase {phase}
-        </p>
-      </div>
+          {members.length === 0 ? (
+            <p
+              className="px-3 py-2 text-[11px]"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#4a4a60' }}
+            >
+              No team members yet
+            </p>
+          ) : (
+            members.map(m => {
+              const assigned = assignees.some(a => a.id === m.id)
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => { onToggle(m) }}
+                  className="flex items-center gap-2 w-full px-2.5 py-1.5 text-xs transition-colors cursor-pointer"
+                  style={{
+                    color:           assigned ? '#a5b4fc' : '#8080a0',
+                    backgroundColor: assigned ? 'rgba(99,102,241,0.1)' : 'transparent',
+                    fontFamily:      "'Plus Jakarta Sans', sans-serif",
+                  }}
+                  onMouseEnter={e => { if (!assigned) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)' }}
+                  onMouseLeave={e => { if (!assigned) e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <MemberAvatar member={m} size="sm" />
+                  <span className="flex-1 text-left">{m.name}</span>
+                  {assigned && (
+                    <span style={{ color: '#6366f1', fontSize: 10 }}>✓</span>
+                  )}
+                </button>
+              )
+            })
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
+// ─── Label picker ─────────────────────────────────────────────────────────────
+
+function LabelPicker({
+  appliedLabels,
+  onToggle,
+}: {
+  appliedLabels: Label[]
+  onToggle:      (label: Label) => void
+}) {
+  const { labels } = useLabels()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Applied labels + add button */}
+      <div className="flex items-center flex-wrap gap-1.5 min-h-[28px]">
+        {appliedLabels.map(l => (
+          <button
+            key={l.id}
+            onClick={() => onToggle(l)}
+            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium cursor-pointer transition-opacity"
+            style={{
+              backgroundColor: l.color + '22',
+              border:          `1px solid ${l.color}55`,
+              color:           l.color,
+              fontFamily:      "'Space Grotesk', sans-serif",
+            }}
+            title={`Remove "${l.name}"`}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.65' }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: l.color }} />
+            {l.name}
+          </button>
+        ))}
+
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="w-6 h-6 rounded-full flex items-center justify-center transition-colors cursor-pointer shrink-0"
+          style={{
+            backgroundColor: open ? '#252535' : '#1a1a26',
+            border:          '1px dashed #3a3a55',
+            color:           '#5a5a78',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.color = '#a5b4fc' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = '#3a3a55'; e.currentTarget.style.color = '#5a5a78' }}
+          title="Add label"
+        >
+          <Plus size={11} />
+        </button>
+      </div>
+
+      {/* Dropdown */}
+      {open && (
+        <div
+          className="absolute top-full left-0 mt-1.5 w-full rounded-xl border py-1 z-20"
+          style={{ backgroundColor: '#1a1a26', borderColor: '#252535', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', minWidth: 160 }}
+        >
+          {labels.length === 0 ? (
+            <p
+              className="px-3 py-2 text-[11px]"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#4a4a60' }}
+            >
+              No labels yet
+            </p>
+          ) : (
+            labels.map(l => {
+              const applied = appliedLabels.some(a => a.id === l.id)
+              return (
+                <button
+                  key={l.id}
+                  onClick={() => onToggle(l)}
+                  className="flex items-center gap-2 w-full px-2.5 py-1.5 text-xs transition-colors cursor-pointer"
+                  style={{
+                    color:           applied ? '#a5b4fc' : '#8080a0',
+                    backgroundColor: applied ? 'rgba(99,102,241,0.1)' : 'transparent',
+                    fontFamily:      "'Space Grotesk', sans-serif",
+                  }}
+                  onMouseEnter={e => { if (!applied) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)' }}
+                  onMouseLeave={e => { if (!applied) e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: l.color }} />
+                  <span className="flex-1 text-left">{l.name}</span>
+                  {applied && <span style={{ color: '#6366f1', fontSize: 10 }}>✓</span>}
+                </button>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 // ─── Task modal ───────────────────────────────────────────────────────────────
 
-export function TaskModal({ task, updateTask, deleteTask, logActivity, onClose }: TaskModalProps) {
+export function TaskModal({ task, updateTask, deleteTask, toggleAssignee, toggleLabel, onClose }: TaskModalProps) {
   const [title, setTitle]           = useState(task.title)
   const [description, setDesc]      = useState(task.description ?? '')
   const [confirmDelete, setConfirm] = useState(false)
@@ -198,7 +378,6 @@ export function TaskModal({ task, updateTask, deleteTask, logActivity, onClose }
     const trimmed = title.trim()
     if (!trimmed || trimmed === task.title) return
     updateTask(task.id, { title: trimmed })
-    logActivity(task.id, 'title_edit', { from: task.title, to: trimmed })
   }
 
   function saveDescription() {
@@ -206,25 +385,21 @@ export function TaskModal({ task, updateTask, deleteTask, logActivity, onClose }
     const prev    = task.description ?? ''
     if (trimmed === prev) return
     updateTask(task.id, { description: trimmed || null })
-    logActivity(task.id, 'description_edit', { from: prev, to: trimmed })
   }
 
   function changeStatus(newStatus: TaskStatus) {
     if (newStatus === task.status) return
     updateTask(task.id, { status: newStatus })
-    logActivity(task.id, 'status_change', { from: task.status, to: newStatus })
   }
 
   function changePriority(newPriority: TaskPriority) {
     if (newPriority === task.priority) return
     updateTask(task.id, { priority: newPriority })
-    logActivity(task.id, 'priority_change', { from: task.priority, to: newPriority })
   }
 
   function changeDueDate(raw: string) {
     const value = raw || null
     updateTask(task.id, { due_date: value })
-    logActivity(task.id, 'due_date_change', { from: task.due_date, to: value })
   }
 
   async function handleDelete() {
@@ -307,9 +482,8 @@ export function TaskModal({ task, updateTask, deleteTask, logActivity, onClose }
             }}
           />
 
-          {/* Placeholder sections */}
-          <PlaceholderSection label="Comments" phase={9} />
-          <PlaceholderSection label="Activity" phase={10} />
+          <CommentList taskId={task.id} />
+          <ActivityLog taskId={task.id} />
         </div>
 
         {/* Divider */}
@@ -353,24 +527,18 @@ export function TaskModal({ task, updateTask, deleteTask, logActivity, onClose }
             </div>
           </MetaRow>
 
-          {/* Assignees placeholder (Phase 7) */}
           <MetaRow label="Assignees">
-            <div
-              className="rounded-lg px-2.5 py-2 text-[11px] border border-dashed"
-              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#3a3a50', borderColor: '#1e1e2e', backgroundColor: '#0e0e14' }}
-            >
-              Coming in Phase 7
-            </div>
+            <AssigneePicker
+              assignees={task.assignees}
+              onToggle={member => toggleAssignee(task.id, member)}
+            />
           </MetaRow>
 
-          {/* Labels placeholder (Phase 8) */}
           <MetaRow label="Labels">
-            <div
-              className="rounded-lg px-2.5 py-2 text-[11px] border border-dashed"
-              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", color: '#3a3a50', borderColor: '#1e1e2e', backgroundColor: '#0e0e14' }}
-            >
-              Coming in Phase 8
-            </div>
+            <LabelPicker
+              appliedLabels={task.labels}
+              onToggle={label => toggleLabel(task.id, label)}
+            />
           </MetaRow>
 
           {/* Spacer pushes footer to bottom */}
