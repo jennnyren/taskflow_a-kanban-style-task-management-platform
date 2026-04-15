@@ -10,6 +10,28 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+// Module-level promise deduplicates concurrent auth calls (e.g. React StrictMode
+// double-invocation), preventing Supabase auth-lock contention errors.
+let authInitPromise: Promise<User | null> | null = null
+
+function getOrInitAuth(): Promise<User | null> {
+  if (!authInitPromise) {
+    authInitPromise = (async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) return session.user
+
+      const { data, error } = await supabase.auth.signInAnonymously()
+      if (error) throw error
+      return data.user
+    })().catch((err) => {
+      // Reset so a retry is possible on the next mount
+      authInitPromise = null
+      throw err
+    })
+  }
+  return authInitPromise
+}
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -20,37 +42,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false
 
-    async function initAuth() {
-      try {
-        // Check for an existing session first
-        const { data: { session } } = await supabase.auth.getSession()
-
-        if (session?.user) {
-          if (!cancelled) {
-            setUser(session.user)
-            setLoading(false)
-          }
-          return
-        }
-
-        // No session — sign in anonymously
-        const { data, error: signInError } = await supabase.auth.signInAnonymously()
-
-        if (signInError) throw signInError
-
-        if (!cancelled) {
-          setUser(data.user)
-          setLoading(false)
-        }
-      } catch (err) {
+    getOrInitAuth()
+      .then((u) => { if (!cancelled) { setUser(u); setLoading(false) } })
+      .catch((err) => {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Authentication failed')
           setLoading(false)
         }
-      }
-    }
-
-    initAuth()
+      })
 
     // Keep user in sync across tabs / token refreshes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
