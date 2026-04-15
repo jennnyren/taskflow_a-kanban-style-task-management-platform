@@ -10,9 +10,15 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-// Module-level promise deduplicates concurrent auth calls (e.g. React StrictMode
-// double-invocation), preventing Supabase auth-lock contention errors.
+// Module-level auth setup — runs once, unaffected by StrictMode double-invocation.
+// onAuthStateChange internally calls getSession() when subscribed; if subscribed
+// inside a useEffect it runs twice in StrictMode, causing auth-lock contention.
 let authInitPromise: Promise<User | null> | null = null
+const authStateListeners = new Set<(user: User | null) => void>()
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  authStateListeners.forEach((fn) => fn(session?.user ?? null))
+})
 
 function getOrInitAuth(): Promise<User | null> {
   if (!authInitPromise) {
@@ -24,7 +30,6 @@ function getOrInitAuth(): Promise<User | null> {
       if (error) throw error
       return data.user
     })().catch((err) => {
-      // Reset so a retry is possible on the next mount
       authInitPromise = null
       throw err
     })
@@ -51,14 +56,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
 
-    // Keep user in sync across tabs / token refreshes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!cancelled) setUser(session?.user ?? null)
-    })
+    // Keep user in sync across tabs / token refreshes via the module-level listener
+    const listener = (u: User | null) => { if (!cancelled) setUser(u) }
+    authStateListeners.add(listener)
 
     return () => {
       cancelled = true
-      subscription.unsubscribe()
+      authStateListeners.delete(listener)
     }
   }, [])
 
